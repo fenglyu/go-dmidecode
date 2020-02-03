@@ -97,7 +97,6 @@ func (dmit *DMITable) Version() string {
 }
 
 func (dmit *DMITable) Query(keyword string) string {
-	fmt.Println(keyword)
 	if _, ok := dmit.Table[keyword]; !ok {
 		return ""
 	}
