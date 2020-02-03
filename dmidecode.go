@@ -97,7 +97,7 @@ func (dmit *DMITable) Version() string {
 }
 
 func (dmit *DMITable) Query(keyword string) string {
-
+	fmt.Println(keyword)
 	if _, ok := dmit.Table[keyword]; !ok {
 		return ""
 	}
@@ -111,8 +111,12 @@ func (dmit *DMITable) Query(keyword string) string {
 			break
 		}
 	}
+	// There is no such header type
+	if s == nil {
+		return ""
+	}
 
-	if sk.Offset-uint8(headerLen) >= s.Header.Length {
+	if sk.Offset >= s.Header.Length {
 		return ""
 	}
 
@@ -120,9 +124,9 @@ func (dmit *DMITable) Query(keyword string) string {
 	key := (s.Header.Type << 8) | offset
 	switch keyword {
 	case "bios-revision", "firmware-revision":
-		k := key - headerLen
-		if s.Formatted[k-1] != 0xFF && s.Formatted[k] != 0xFF {
-			return fmt.Sprintf("%d.%d", s.Formatted[k-1], s.Formatted[k])
+		key -= headerLen
+		if s.Formatted[key-1] != 0xFF && s.Formatted[key] != 0xFF {
+			return fmt.Sprintf("%d.%d", s.Formatted[key-1], s.Formatted[key])
 		}
 		break
 	case "system-uuid":
@@ -147,8 +151,8 @@ func (dmit *DMITable) Query(keyword string) string {
 func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset int) string {
 	offset -= headerLen
 	idx := uint8(s.Formatted[offset])
-	if int(idx) > len(s.Strings) {
-		return ""
+	if int(idx) > len(s.Strings) || idx == 0 {
+		return "Not Specified"
 	}
 
 	return s.Strings[int(idx)-1]

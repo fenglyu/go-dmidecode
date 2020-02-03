@@ -1,4 +1,4 @@
-module github.com/fenglyu/go-dmidecode
+module ghosthub.corp.blizzard.net/flv/go-dmidecode
 
 go 1.13
 

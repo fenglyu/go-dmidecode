@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/fenglyu/go-dmidecode"
+	smbios "ghosthub.corp.blizzard.net/flv/go-dmidecode"
 )
 
 func main() {
