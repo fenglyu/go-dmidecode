@@ -10,6 +10,6 @@ import (
 )
 
 func main() {
-	a := smbios.DMITable{}
+	a := smbios.NewDMITable()
 	fmt.Println(a.GetEntriesByType(17))
 }
