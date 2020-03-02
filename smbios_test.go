@@ -23,12 +23,11 @@ func TestGetResultByKeyword(t *testing.T) {
 			result: "HP Z420 Workstation",
 			ok: true,
 		}
-	
+    }	
 	for _, tt := range tests{
 		t.Run(tt.name, func(t *testing.T) {
 			dmi := &DMITable{}
 			dmi.GetResultByKeyword()
 		}
 	}
-
 }
