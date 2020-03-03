@@ -1,10 +1,15 @@
 package smbios
 
 import (
+	//	"encoding/binary"
 	"fmt"
 	"log"
 
 	"github.com/digitalocean/go-smbios/smbios"
+)
+
+const (
+	headerLen = 4
 )
 
 type StringKW struct {
@@ -13,11 +18,15 @@ type StringKW struct {
 	Offset  uint8
 }
 
+// Same as defined in dmidecode
+// https://github.com/mirror/dmidecode/blob/master/dmiopt.c#L150
+// The Offset is calculated from the beginning of `Structure`
+// While Structure's Formatted attribute is from the end of `Strucure` Header(4 BYTE)
 var string_keyword = []*StringKW{
 	{"bios-vendor", 0, 0x04},
 	{"bios-version", 0, 0x05},
 	{"bios-release-date", 0, 0x08},
-	{"bios-revision", 0, 0x15},     /* 0x14 and 0x15 */
+	{"bios-revision", 0, 0x15},
 	{"firmware-revision", 0, 0x17}, /* 0x16 and 0x17 */
 	{"system-manufacturer", 1, 0x04},
 	{"system-product-name", 1, 0x05},
@@ -44,9 +53,9 @@ var string_keyword = []*StringKW{
 type DMIType uint8
 
 type DMITable struct {
-	Mapping map[string]*StringKW
-	ep      smbios.EntryPoint
-	ss      []*smbios.Structure
+	Table map[string]*StringKW
+	ep    smbios.EntryPoint
+	ss    []*smbios.Structure
 }
 
 func NewDMITable() *DMITable {
@@ -68,11 +77,11 @@ func NewDMITable() *DMITable {
 	dt.ep = ep
 	dt.ss = ss
 
-	mapping := make(map[string]*StringKW)
+	table := make(map[string]*StringKW)
 	for _, v := range string_keyword {
-		mapping[v.Keyword] = v
+		table[v.Keyword] = v
 	}
-	dt.Mapping = mapping
+	dt.Table = table
 	return dt
 }
 
@@ -85,29 +94,58 @@ func (dmit *DMITable) Version() string {
 		major, minor, rev, addr, size)
 }
 
-//func (dmit *DMITable)
-
-/*
-bios-vendor, bios-ver‐sion, bios-release-date, system-manufacturer, system-product-name, system-version, system-serial-number, system-uuid, baseboard-manufacturer,baseboard-product-name, baseboard-version, baseboard-serial-number, baseboard-asset-tag, chassis-manufacturer, chassis-type, chassis-version, chassis-serial-number, chassis-asset-tag, processor-family, processor-manufacturer,  processor-version,  processor-frequency.
-*/
 func (dmit *DMITable) GetResultByKeyword(keyword string) string {
 
-	if _, ok := dmit.Mapping[keyword]; ok == nil {
+	if _, ok := dmit.Table[keyword]; !ok {
 		return ""
 	}
 
+	sk := dmit.Table[keyword]
+
+	var s *smbios.Structure
+	for _, st := range dmit.ss {
+		if sk.Type == st.Header.Type {
+			s = st
+			break
+		}
+	}
+
+	if sk.Offset-uint8(headerLen) >= s.Header.Length {
+		return ""
+	}
+
+	offset := sk.Offset
+	key := (s.Header.Type << 8) | offset
 	switch keyword {
-	case "bios-vendor":
+	case "bios-revision", "firmware-revision":
+		k := key - 1 - headerLen
+		if s.Formatted[k] != 0xFF && s.Formatted[k+1] != 0xFF {
+			return fmt.Sprintf("%d.%d\n", s.Formatted[k], s.Formatted[k+1])
+		}
+		break
+	case "system-uuid": /* dmi_system_uuid() */
 		fmt.Println(keyword)
-	case "bios-version":
+	case "chassis-type": /* dmi_chassis_type() */
 		fmt.Println(keyword)
-	case "bios-release-date":
+	case "processor-family": /* dmi_processor_family() */
 		fmt.Println(keyword)
-	case "system-product-name":
+	case "processor-frequency": /* dmi_processor_frequency() */
 		fmt.Println(keyword)
+	default:
+		return dmit.dmi_to_string(s, offset)
 	}
 
 	return ""
+}
+
+func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset uint8) string {
+
+	offset -= uint8(headerLen)
+	if int(offset) >= len(s.Strings) {
+		return ""
+	}
+
+	return s.Strings[offset]
 }
 
 func (dmit *DMITable) GetEntriesByType(et DMIType) string {

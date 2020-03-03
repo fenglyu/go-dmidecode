@@ -142,3 +142,9 @@ Management_Controller_Host_Interface
 		//		fmt.Println(s)
 	*/
 	// Assume we find BIOS and end of table types.
+
+
+## go test run specific test function
+```
+go test . -v -run '^TestDecoder$'
+```
