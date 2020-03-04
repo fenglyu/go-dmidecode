@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	headerLen = 4
+	headerLen   = 4
+	out_of_spec = "<OUT OF SPEC>"
 )
 
 type StringKW struct {
@@ -118,15 +119,16 @@ func (dmit *DMITable) GetResultByKeyword(keyword string) string {
 	key := (s.Header.Type << 8) | offset
 	switch keyword {
 	case "bios-revision", "firmware-revision":
-		k := key - 1 - headerLen
-		if s.Formatted[k] != 0xFF && s.Formatted[k+1] != 0xFF {
-			return fmt.Sprintf("%d.%d\n", s.Formatted[k], s.Formatted[k+1])
+		k := key - headerLen
+		if s.Formatted[k-1] != 0xFF && s.Formatted[k] != 0xFF {
+			return fmt.Sprintf("%d.%d", s.Formatted[k-1], s.Formatted[k])
 		}
 		break
-	case "system-uuid": /* dmi_system_uuid() */
-		fmt.Println(keyword)
-	case "chassis-type": /* dmi_chassis_type() */
-		fmt.Println(keyword)
+	case "system-uuid":
+		return dmit.dmi_system_uuid(s, int(offset)-headerLen)
+	case "chassis-type":
+		p := s.Formatted[offset-headerLen]
+		return dmit.dmi_chassis_type(p)
 	case "processor-family": /* dmi_processor_family() */
 		fmt.Println(keyword)
 	case "processor-frequency": /* dmi_processor_frequency() */
@@ -136,6 +138,32 @@ func (dmit *DMITable) GetResultByKeyword(keyword string) string {
 	}
 
 	return ""
+}
+
+func (dmit *DMITable) dmi_system_uuid(s *smbios.Structure, offset int) string {
+	only0xFF, only0x00 := true, true
+	p := s.Formatted[offset:]
+	for i := 0; i < 16 && (only0x00 || only0xFF); i++ {
+		if p[i] != 0x00 {
+			only0x00 = false
+		}
+		if p[i] != 0xFF {
+			only0xFF = false
+		}
+	}
+	if only0xFF {
+		return fmt.Sprintln("Not Present")
+	}
+	if only0x00 {
+		return fmt.Sprintln("Not Settable")
+	}
+	major, minor, rev := dmit.ep.Version()
+	fmt.Println(major, minor, rev)
+	if major >= 3 || (major >= 2 && minor >= 6) {
+		return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+			p[3], p[2], p[1], p[0], p[5], p[4], p[7], p[6], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15])
+	}
+	return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15])
 }
 
 func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset uint8) string {
@@ -160,4 +188,53 @@ func (dmit *DMITable) GetEntriesByType(et DMIType) string {
 		}
 	}
 	return ""
+}
+
+func (dmit *DMITable) dmi_chassis_type(code uint8) string {
+	/* 7.4.1 */
+	ctype := []string{
+		"Other", /* 0x01 */
+		"Unknown",
+		"Desktop",
+		"Low Profile Desktop",
+		"Pizza Box",
+		"Mini Tower",
+		"Tower",
+		"Portable",
+		"Laptop",
+		"Notebook",
+		"Hand Held",
+		"Docking Station",
+		"All In One",
+		"Sub Notebook",
+		"Space-saving",
+		"Lunch Box",
+		"Main Server Chassis", /* CIM_Chassis.ChassisPackageType says "Main System Chassis" */
+		"Expansion Chassis",
+		"Sub Chassis",
+		"Bus Expansion Chassis",
+		"Peripheral Chassis",
+		"RAID Chassis",
+		"Rack Mount Chassis",
+		"Sealed-case PC",
+		"Multi-system",
+		"CompactPCI",
+		"AdvancedTCA",
+		"Blade",
+		"Blade Enclosing",
+		"Tablet",
+		"Convertible",
+		"Detachable",
+		"IoT Gateway",
+		"Embedded PC",
+		"Mini PC",
+		"Stick PC", /* 0x24 */
+	}
+
+	code &= 0x7F /* bits 6:0 are chassis type, 7th bit is the lock bit */
+
+	if code >= 0x01 && code <= 0x24 {
+		return ctype[code-0x01]
+	}
+	return out_of_spec
 }
