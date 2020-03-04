@@ -61,90 +61,30 @@ vided or not valid, a list of all valid keywords is printed and dmidecode exits 
 Note:  on Linux, most of these strings can alternatively be read directly from sysfs, typically from files under /sys/devices/virtual/dmi/id.
 Most of these files are even readable by regular users.
 
-BIOS DMIType = iota
-System
-Baseboard
-Chassis
-Processor
-Memory_Controller
-Memory_Module
-Cache
-Port_Connector
-System_Slots
-On_Board_Devices
-OEM_Strings
-System_Configuration_Options
-BIOS_Language
-Group_Associations
-System_Event_Log
-Physical_Memory_Array
-Memory_Device
-32-bit_Memory_Error
-Memory_Array_Mapped_Address
-Memory_Device_Mapped_Address
-Built-in_Pointing_Device
-Portable_Battery
-System_Reset
-Hardware_Security
-System_Power_Controls
-Voltage_Probe
-Cooling_Device
-Temperature_Probe
-Electrical_Current_Probe
-Out-of-band_Remote_Access
-Boot_Integrity_Services
-System_Boot
-64-bit_Memory_Error
-Management_Device
-Management_Device_Component
-Management_Device_Threshold_Data
-Memory_Channel
-IPMI_Device
-Power_Supply
-Additional_Information
-Onboard_Devices_Extended_Information
-Management_Controller_Host_Interface
-
-*/
-
-	//	fmt.Println(ss)
-	//	for _, s := range ss {
-	/*
-		// Only look at memory devices.
-		if s.Header.Type != 17 {
-			continue
-		}
-
-		// Formatted section contains a variety of data, but only parse the DIMM size.
-		size := int(binary.LittleEndian.Uint16(s.Formatted[8:10]))
-		// String 0 is the DIMM slot's identifier.
-		name := s.Strings[0]
-
-		// If 0, no DIMM present in this slot.
-		if size == 0 {
-			fmt.Printf("[% 3s] empty\n", name)
-			continue
-		}
-
-		// An extended uint32 DIMM size field appears if 0x7fff is present in size.
-		if size == 0x7fff {
-			size = int(binary.LittleEndian.Uint32(s.Formatted[24:28]))
-		}
-
-		// Size units depend on MSB.  Little endian MSB for uint16 is in second byte.
-		// 0 means megabytes, 1 means kilobytes.
-		unit := "KB"
-		if s.Formatted[9]&0x80 == 0 {
-			unit = "MB"
-		}
-
-		fmt.Printf("[% 3s] DIMM: %d %s\n", name, size, unit)
-		//		fmt.Println(s)
-	*/
-	// Assume we find BIOS and end of table types.
 
 
 ## go test run specific test function
 ```
 go test . -v -run '^TestDecoder$'
+```
+
+```
+
+## dmidecode data type
+```
+/*
+ * Per SMBIOS v2.8.0 and later, all structures assume a little-endian
+ * ordering convention.
+ */
+#if defined(ALIGNMENT_WORKAROUND) || defined(BIGENDIAN)
+#define WORD(x) (u16)((x)[0] + ((x)[1] << 8))
+#define DWORD(x) (u32)((x)[0] + ((x)[1] << 8) + ((x)[2] << 16) + ((x)[3] << 24))
+#define QWORD(x) (U64(DWORD(x), DWORD(x + 4)))
+#else /* ALIGNMENT_WORKAROUND || BIGENDIAN */
+#define WORD(x) (u16)(*(const u16 *)(x))
+#define DWORD(x) (u32)(*(const u32 *)(x))
+#define QWORD(x) (*(const u64 *)(x))
+#endif /* ALIGNMENT_WORKAROUND || BIGENDIAN */
+
+#endif
 ```

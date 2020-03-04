@@ -45,7 +45,7 @@ func main() {
 	fmt.Println(a.GetResultByKeyword("chassis-version"))
 	fmt.Println(a.GetResultByKeyword("chassis-serial-number"))
 	fmt.Println(a.GetResultByKeyword("chassis-asset-tag"))
-	fmt.Println(a.GetResultByKeyword("processor-family")) /* dmi_processor_family() */
+	fmt.Println("processor-family", a.GetResultByKeyword("processor-family")) /* dmi_processor_family() */
 	fmt.Println(a.GetResultByKeyword("processor-manufacturer"))
 	fmt.Println(a.GetResultByKeyword("processor-version"))
 	fmt.Println(a.GetResultByKeyword("processor-frequency")) /* dmi_processor_frequency() */
