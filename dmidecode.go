@@ -1,4 +1,4 @@
-package smbios
+package dmidecode
 
 import (
 	"encoding/binary"
