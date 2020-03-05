@@ -96,7 +96,7 @@ func (dmit *DMITable) Version() string {
 		major, minor, rev, addr, size)
 }
 
-func (dmit *DMITable) GetResultByKeyword(keyword string) string {
+func (dmit *DMITable) Query(keyword string) string {
 
 	if _, ok := dmit.Table[keyword]; !ok {
 		return ""
@@ -128,18 +128,30 @@ func (dmit *DMITable) GetResultByKeyword(keyword string) string {
 	case "system-uuid":
 		return dmit.dmi_system_uuid(s, int(offset)-headerLen)
 	case "chassis-type":
-		p := s.Formatted[offset-headerLen]
+		p := uint8(s.Formatted[int(offset)-headerLen])
 		return dmit.dmi_chassis_type(p)
-	case "processor-family": /* dmi_processor_family() */
+	case "processor-family":
 		return dmit.dmi_processor_family(s)
-	case "processor-frequency": /* dmi_processor_frequency() */
-		p := s.Formatted[offset-headerLen:]
+	case "processor-frequency":
+		p := s.Formatted[int(offset)-headerLen:]
 		return dmit.dmi_processor_frequency(p)
 	default:
 		return dmit.dmi_to_string(s, int(offset))
 	}
 
 	return ""
+}
+
+// offset is counted from the beginning for the structure
+// Structure's Formatted is count from the end of Header(4 BYTE long)
+func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset int) string {
+	offset -= headerLen
+	idx := uint8(s.Formatted[offset])
+	if int(idx) > len(s.Strings) {
+		return ""
+	}
+
+	return s.Strings[int(idx)-1]
 }
 
 func (dmit *DMITable) dmi_system_uuid(s *smbios.Structure, offset int) string {
@@ -166,30 +178,6 @@ func (dmit *DMITable) dmi_system_uuid(s *smbios.Structure, offset int) string {
 			p[3], p[2], p[1], p[0], p[5], p[4], p[7], p[6], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15])
 	}
 	return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15])
-}
-
-func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset int) string {
-
-	offset -= headerLen
-	if offset >= len(s.Strings) {
-		return ""
-	}
-
-	return s.Strings[offset]
-}
-
-func (dmit *DMITable) GetEntriesByType(et DMIType) string {
-	for _, s := range dmit.ss {
-		//	fmt.Printf("---> %d\n", s.Header.Type)
-		if s.Header.Type == uint8(et) {
-			var con_str string
-			for _, str := range s.Strings {
-				con_str = fmt.Sprintf("%s\n%s", con_str, str)
-			}
-			return con_str
-		}
-	}
-	return ""
 }
 
 func (dmit *DMITable) dmi_chassis_type(code uint8) string {
