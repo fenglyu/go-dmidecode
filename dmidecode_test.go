@@ -3,6 +3,7 @@ package smbios
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"os/exec"
 	"strings"
@@ -27,7 +28,6 @@ func Run(name string, arg ...string) string {
 
 	return out.String()
 }
-
 func TestGetResultByKeyword(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -161,8 +161,8 @@ func TestGetResultByKeyword(t *testing.T) {
 			ok:      true,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("%d-%s", i, tt.name), func(t *testing.T) {
 			// skip test bios-revision firmware-revision system-family
 			// as dmidecode on most platform doesn't support them yet
 			if !tt.ok {
