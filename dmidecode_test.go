@@ -28,7 +28,7 @@ func Run(name string, arg ...string) string {
 
 	return out.String()
 }
-func TestGetResultByKeyword(t *testing.T) {
+func TestQuery(t *testing.T) {
 	tests := []struct {
 		name    string
 		keyword string
