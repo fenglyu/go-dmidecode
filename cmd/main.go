@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/fenglyu/smbios"
+	"github.com/fenglyu/go-dmidecode"
 )
 
 func main() {
