@@ -1,7 +1,32 @@
-## Go native support *dmidecode -s keyword*
+### Go native support for *dmidecode -s <keyword>*
+
+### Get the module
+```
+go get -u github.com/fenglyu/go-dmidecode
+```
+
+### Simple Example
+```go
+
+import (
+	"fmt"
+
+	smbios "github.com/fenglyu/go-dmidecode"
+)
+
+func main() {
+
+	dmit := smbios.NewDMITable()
+	fmt.Println(dmit.Version())
+
+	keyword := "system-uuid"
+	fmt.Printf("[%s] %s\n", keyword, dmit.Query(keyword))
+}
 
 ```
-String keyword expected
+
+### String keyword expected
+```
   bios-vendor
   bios-version
   bios-release-date
@@ -27,9 +52,8 @@ String keyword expected
   processor-manufacturer
   processor-version
   processor-frequency
-
 ```
 
-## Implemention
+### Implemention Details
 The underlying DMI decode/parse is based on [go-smbios](https://github.com/digitalocean/go-smbios), Some functions are simply a re-implemention of the C version [dmidecode](https://github.com/mirror/dmidecode)
 SMBIOS Documention reference [DSP0134_3.1.1.pdf](https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.1.1.pdf)
