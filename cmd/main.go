@@ -2,13 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	smbios "github.com/fenglyu/go-dmidecode"
 )
 
 func main() {
 
-	dmit := smbios.NewDMITable()
+	dmit, err := smbios.NewDMITable()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Println(dmit.Version())
 
 	for k, _ := range dmit.Table {

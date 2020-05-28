@@ -168,7 +168,10 @@ func TestQuery(t *testing.T) {
 			if !tt.ok {
 				return
 			}
-			dmi := NewDMITable()
+			dmi, err := NewDMITable()
+			if err != nil {
+				t.Fatal(err)
+			}
 			result := dmi.Query(tt.keyword)
 			// dmidecode's output always ends up with an newline
 			expected := Run("dmidecode", "-s", string(tt.keyword))

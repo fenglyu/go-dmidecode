@@ -3,7 +3,6 @@ package dmidecode
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/digitalocean/go-smbios/smbios"
@@ -90,12 +89,12 @@ type DMITable struct {
 	ss    []*smbios.Structure
 }
 
-func NewDMITable() *DMITable {
+func NewDMITable() (*DMITable, error) {
 
 	dt := &DMITable{}
 	rc, ep, err := smbios.Stream()
 	if err != nil {
-		log.Fatalf("failed to open stream: %v", err)
+		return nil, ErrOpenStream{Err: err}
 	}
 	// Be sure to close the stream!
 	defer rc.Close()
@@ -104,7 +103,7 @@ func NewDMITable() *DMITable {
 	d := smbios.NewDecoder(rc)
 	ss, err := d.Decode()
 	if err != nil {
-		log.Fatalf("failed to decode structures: %v", err)
+		return nil, ErrDecode{Err: err}
 	}
 	dt.ep = ep
 	dt.ss = ss
@@ -114,7 +113,7 @@ func NewDMITable() *DMITable {
 		table[v.Keyword] = v
 	}
 	dt.Table = table
-	return dt
+	return dt, nil
 }
 
 func (dmit *DMITable) Version() string {
