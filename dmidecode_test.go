@@ -31,7 +31,7 @@ func Run(name string, arg ...string) string {
 func TestQuery(t *testing.T) {
 	tests := []struct {
 		name    string
-		keyword string
+		keyword Keyword
 		//result  string
 		ok bool
 	}{
@@ -171,7 +171,7 @@ func TestQuery(t *testing.T) {
 			dmi := NewDMITable()
 			result := dmi.Query(tt.keyword)
 			// dmidecode's output always ends up with an newline
-			expected := Run("dmidecode", "-s", tt.keyword)
+			expected := Run("dmidecode", "-s", string(tt.keyword))
 			if !strings.EqualFold(result, strings.TrimSpace(expected)) {
 				log.Fatal("Expected: ", strings.TrimSpace(expected), "\n", " Result: ", result)
 			}
