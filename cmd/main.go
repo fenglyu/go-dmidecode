@@ -16,7 +16,7 @@ func main() {
 
 	fmt.Println(dmit.Version())
 
-	for k, _ := range dmit.Table {
+	for k, _ := range smbios.Table {
 		fmt.Printf("[%s] %s\n", k, dmit.Query(k))
 	}
 }

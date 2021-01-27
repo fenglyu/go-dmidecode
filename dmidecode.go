@@ -52,7 +52,7 @@ const (
 // Same as defined in dmidecode
 // https://github.com/mirror/dmidecode/blob/master/dmiopt.c#L150
 // The Offset is calculated from the beginning of `Structure`
-// While Structure's Formatted attribute is from the end of `Strucure` Header(4 BYTE)
+// While Structure's Formatted attribute is from the end of `Structure` Header(4 BYTE)
 var stringKeyword = []*StringKW{
 	{KeywordBIOSVendor, 0, 0x04},
 	{KeywordBIOSVersion, 0, 0x05},
@@ -81,12 +81,24 @@ var stringKeyword = []*StringKW{
 	{KeywordProcessorFrequency, 4, 0x16}, /* dmiProcessorFrequency() */
 }
 
+// Table is a map of an entry keyword to entry metadata, according to
+// specification https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.4.0.pdf
+//
+// It is a read-only value.
+var Table = map[Keyword]*StringKW{}
+
+func init() {
+	Table = map[Keyword]*StringKW{}
+	for _, v := range stringKeyword {
+		Table[v.Keyword] = v
+	}
+}
+
 type DMIType uint8
 
 type DMITable struct {
-	Table map[Keyword]*StringKW
-	ep    smbios.EntryPoint
-	ss    []*smbios.Structure
+	EntryPoint    smbios.EntryPoint
+	SMBIOSStructs []*smbios.Structure
 }
 
 func NewDMITable() (*DMITable, error) {
@@ -105,35 +117,29 @@ func NewDMITable() (*DMITable, error) {
 	if err != nil {
 		return nil, ErrDecode{Err: err}
 	}
-	dt.ep = ep
-	dt.ss = ss
-
-	table := make(map[Keyword]*StringKW)
-	for _, v := range stringKeyword {
-		table[v.Keyword] = v
-	}
-	dt.Table = table
+	dt.EntryPoint = ep
+	dt.SMBIOSStructs = ss
 	return dt, nil
 }
 
 func (dmit *DMITable) Version() string {
-	// Determine SMBIOS version and table location from entry point.
-	major, minor, rev := dmit.ep.Version()
-	addr, size := dmit.ep.Table()
+	// Determine SMBIOS version and Table location from entry point.
+	major, minor, rev := dmit.EntryPoint.Version()
+	addr, size := dmit.EntryPoint.Table()
 
-	return fmt.Sprintf("SMBIOS %d.%d.%d - table: address: %#x, size: %d\n",
+	return fmt.Sprintf("SMBIOS %d.%d.%d - Table: address: %#x, size: %d\n",
 		major, minor, rev, addr, size)
 }
 
 func (dmit *DMITable) Query(keyword Keyword) string {
-	if _, ok := dmit.Table[keyword]; !ok {
+	if _, ok := Table[keyword]; !ok {
 		return ""
 	}
 
-	sk := dmit.Table[keyword]
+	sk := Table[keyword]
 
 	var s *smbios.Structure
-	for _, st := range dmit.ss {
+	for _, st := range dmit.SMBIOSStructs {
 		if sk.Type == st.Header.Type {
 			s = st
 			break
@@ -203,7 +209,7 @@ func (dmit *DMITable) dmiSystemUUID(s *smbios.Structure, offset int) string {
 	if only0x00 {
 		return fmt.Sprintln("Not Settable")
 	}
-	major, minor, _ := dmit.ep.Version()
+	major, minor, _ := dmit.EntryPoint.Version()
 	//fmt.Println(major, minor, rev)
 	if major >= 3 || (major >= 2 && minor >= 6) {
 		return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
@@ -501,7 +507,7 @@ func (dmit *DMITable) dmiProcessorFamily(s *smbios.Structure) string {
 		{0x202, "RV128"},
 	}
 
-	major, minor, _ := dmit.ep.Version()
+	major, minor, _ := dmit.EntryPoint.Version()
 	/* Special case for ambiguous value 0x30 (SMBIOS 2.0 only) */
 	if major == 2 && minor == 0 && data[0x06-headerLen] == 0x30 && s.Header.Length >= 0x08 {
 		manufacturer := dmit.dmiToString(s, 0x07)

@@ -21,7 +21,7 @@ type ErrDecode struct {
 }
 
 func (err ErrDecode) Error() string {
-	return fmt.Sprintf("failed to decode structures: %v", err)
+	return fmt.Sprintf("failed to decode structures: %v", err.Err)
 }
 
 func (err ErrDecode) Unwrap() error {
