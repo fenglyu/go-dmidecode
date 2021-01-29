@@ -3,69 +3,110 @@ package dmidecode
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/digitalocean/go-smbios/smbios"
 )
 
 const (
-	headerLen   = 4
-	out_of_spec = "<OUT OF SPEC>"
+	headerLen = 4
+	outOfSpec = "<OUT OF SPEC>"
 )
 
 type StringKW struct {
-	Keyword string
+	Keyword Keyword
 	Type    uint8
 	Offset  uint8
 }
 
+type Keyword string
+
+const (
+	KeywordBIOSVendor            = Keyword("bios-vendor")
+	KeywordBIOSVersion           = Keyword("bios-version")
+	KeywordBIOSReleaseDate       = Keyword("bios-release-date")
+	KeywordBIOSRevision          = Keyword("bios-revision")
+	KeywordFirmwareRevision      = Keyword("firmware-revision")
+	KeywordSystemManufacturer    = Keyword("system-manufacturer")
+	KeywordSystemProductName     = Keyword("system-product-name")
+	KeywordSystemVersion         = Keyword("system-version")
+	KeywordSystemSerialNumber    = Keyword("system-serial-number")
+	KeywordSystemUUID            = Keyword("system-uuid")
+	KeywordSystemFamily          = Keyword("system-family")
+	KeywordBaseboardManufacturer = Keyword("baseboard-manufacturer")
+	KeywordBaseboardProductName  = Keyword("baseboard-product-name")
+	KeywordBaseboardVersion      = Keyword("baseboard-version")
+	KeywordBaseboardSerialNumber = Keyword("baseboard-serial-number")
+	KeywordBaseboardAssetTag     = Keyword("baseboard-asset-tag")
+	KeywordChassisManufacturer   = Keyword("chassis-manufacturer")
+	KeywordChassisType           = Keyword("chassis-type")
+	KeywordChassisVersion        = Keyword("chassis-version")
+	KeywordChassisSerialNumber   = Keyword("chassis-serial-number")
+	KeywordChassisAssetTag       = Keyword("chassis-asset-tag")
+	KeywordProcessorFamily       = Keyword("processor-family")
+	KeywordProcessorManufacturer = Keyword("processor-manufacturer")
+	KeywordProcessorVersion      = Keyword("processor-version")
+	KeywordProcessorFrequency    = Keyword("processor-frequency")
+)
+
 // Same as defined in dmidecode
 // https://github.com/mirror/dmidecode/blob/master/dmiopt.c#L150
 // The Offset is calculated from the beginning of `Structure`
-// While Structure's Formatted attribute is from the end of `Strucure` Header(4 BYTE)
-var string_keyword = []*StringKW{
-	{"bios-vendor", 0, 0x04},
-	{"bios-version", 0, 0x05},
-	{"bios-release-date", 0, 0x08},
-	{"bios-revision", 0, 0x15},
-	{"firmware-revision", 0, 0x17}, /* 0x16 and 0x17 */
-	{"system-manufacturer", 1, 0x04},
-	{"system-product-name", 1, 0x05},
-	{"system-version", 1, 0x06},
-	{"system-serial-number", 1, 0x07},
-	{"system-uuid", 1, 0x08}, /* dmi_system_uuid() */
-	{"system-family", 1, 0x1a},
-	{"baseboard-manufacturer", 2, 0x04},
-	{"baseboard-product-name", 2, 0x05},
-	{"baseboard-version", 2, 0x06},
-	{"baseboard-serial-number", 2, 0x07},
-	{"baseboard-asset-tag", 2, 0x08},
-	{"chassis-manufacturer", 3, 0x04},
-	{"chassis-type", 3, 0x05}, /* dmi_chassis_type() */
-	{"chassis-version", 3, 0x06},
-	{"chassis-serial-number", 3, 0x07},
-	{"chassis-asset-tag", 3, 0x08},
-	{"processor-family", 4, 0x06}, /* dmi_processor_family() */
-	{"processor-manufacturer", 4, 0x07},
-	{"processor-version", 4, 0x10},
-	{"processor-frequency", 4, 0x16}, /* dmi_processor_frequency() */
+// While Structure's Formatted attribute is from the end of `Structure` Header(4 BYTE)
+var stringKeyword = []*StringKW{
+	{KeywordBIOSVendor, 0, 0x04},
+	{KeywordBIOSVersion, 0, 0x05},
+	{KeywordBIOSReleaseDate, 0, 0x08},
+	{KeywordBIOSRevision, 0, 0x15},
+	{KeywordFirmwareRevision, 0, 0x17}, /* 0x16 and 0x17 */
+	{KeywordSystemManufacturer, 1, 0x04},
+	{KeywordSystemProductName, 1, 0x05},
+	{KeywordSystemVersion, 1, 0x06},
+	{KeywordSystemSerialNumber, 1, 0x07},
+	{KeywordSystemUUID, 1, 0x08}, /* dmiSystemUUID() */
+	{KeywordSystemFamily, 1, 0x1a},
+	{KeywordBaseboardManufacturer, 2, 0x04},
+	{KeywordBaseboardProductName, 2, 0x05},
+	{KeywordBaseboardVersion, 2, 0x06},
+	{KeywordBaseboardSerialNumber, 2, 0x07},
+	{KeywordBaseboardAssetTag, 2, 0x08},
+	{KeywordChassisManufacturer, 3, 0x04},
+	{KeywordChassisType, 3, 0x05}, /* dmiChassisType() */
+	{KeywordChassisVersion, 3, 0x06},
+	{KeywordChassisSerialNumber, 3, 0x07},
+	{KeywordChassisAssetTag, 3, 0x08},
+	{KeywordProcessorFamily, 4, 0x06}, /* dmiProcessorFamily() */
+	{KeywordProcessorManufacturer, 4, 0x07},
+	{KeywordProcessorVersion, 4, 0x10},
+	{KeywordProcessorFrequency, 4, 0x16}, /* dmiProcessorFrequency() */
+}
+
+// Table is a map of an entry keyword to entry metadata, according to
+// specification https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.4.0.pdf
+//
+// It is a read-only value.
+var Table = map[Keyword]*StringKW{}
+
+func init() {
+	Table = map[Keyword]*StringKW{}
+	for _, v := range stringKeyword {
+		Table[v.Keyword] = v
+	}
 }
 
 type DMIType uint8
 
 type DMITable struct {
-	Table map[string]*StringKW
-	ep    smbios.EntryPoint
-	ss    []*smbios.Structure
+	EntryPoint    smbios.EntryPoint
+	SMBIOSStructs []*smbios.Structure
 }
 
-func NewDMITable() *DMITable {
+func NewDMITable() (*DMITable, error) {
 
 	dt := &DMITable{}
 	rc, ep, err := smbios.Stream()
 	if err != nil {
-		log.Fatalf("failed to open stream: %v", err)
+		return nil, ErrOpenStream{Err: err}
 	}
 	// Be sure to close the stream!
 	defer rc.Close()
@@ -74,37 +115,31 @@ func NewDMITable() *DMITable {
 	d := smbios.NewDecoder(rc)
 	ss, err := d.Decode()
 	if err != nil {
-		log.Fatalf("failed to decode structures: %v", err)
+		return nil, ErrDecode{Err: err}
 	}
-	dt.ep = ep
-	dt.ss = ss
-
-	table := make(map[string]*StringKW)
-	for _, v := range string_keyword {
-		table[v.Keyword] = v
-	}
-	dt.Table = table
-	return dt
+	dt.EntryPoint = ep
+	dt.SMBIOSStructs = ss
+	return dt, nil
 }
 
 func (dmit *DMITable) Version() string {
-	// Determine SMBIOS version and table location from entry point.
-	major, minor, rev := dmit.ep.Version()
-	addr, size := dmit.ep.Table()
+	// Determine SMBIOS version and Table location from entry point.
+	major, minor, rev := dmit.EntryPoint.Version()
+	addr, size := dmit.EntryPoint.Table()
 
-	return fmt.Sprintf("SMBIOS %d.%d.%d - table: address: %#x, size: %d\n",
+	return fmt.Sprintf("SMBIOS %d.%d.%d - Table: address: %#x, size: %d\n",
 		major, minor, rev, addr, size)
 }
 
-func (dmit *DMITable) Query(keyword string) string {
-	if _, ok := dmit.Table[keyword]; !ok {
+func (dmit *DMITable) Query(keyword Keyword) string {
+	if _, ok := Table[keyword]; !ok {
 		return ""
 	}
 
-	sk := dmit.Table[keyword]
+	sk := Table[keyword]
 
 	var s *smbios.Structure
-	for _, st := range dmit.ss {
+	for _, st := range dmit.SMBIOSStructs {
 		if sk.Type == st.Header.Type {
 			s = st
 			break
@@ -120,26 +155,26 @@ func (dmit *DMITable) Query(keyword string) string {
 	}
 
 	offset := sk.Offset
-	key := (s.Header.Type << 8) | offset
+	key := (uint16(s.Header.Type) << 8) | uint16(offset)
 	switch keyword {
-	case "bios-revision", "firmware-revision":
+	case KeywordBIOSRevision, KeywordFirmwareRevision:
 		key -= headerLen
 		if s.Formatted[key-1] != 0xFF && s.Formatted[key] != 0xFF {
 			return fmt.Sprintf("%d.%d", s.Formatted[key-1], s.Formatted[key])
 		}
 		break
-	case "system-uuid":
-		return dmit.dmi_system_uuid(s, int(offset)-headerLen)
-	case "chassis-type":
-		p := uint8(s.Formatted[int(offset)-headerLen])
-		return dmit.dmi_chassis_type(p)
-	case "processor-family":
-		return dmit.dmi_processor_family(s)
-	case "processor-frequency":
+	case KeywordSystemUUID:
+		return dmit.dmiSystemUUID(s, int(offset)-headerLen)
+	case KeywordChassisType:
+		p := s.Formatted[int(offset)-headerLen]
+		return dmit.dmiChassisType(p)
+	case KeywordProcessorFamily:
+		return dmit.dmiProcessorFamily(s)
+	case KeywordProcessorFrequency:
 		p := s.Formatted[int(offset)-headerLen:]
-		return dmit.dmi_processor_frequency(p)
+		return dmit.dmiProcessorFrequency(p)
 	default:
-		return dmit.dmi_to_string(s, int(offset))
+		return dmit.dmiToString(s, int(offset))
 	}
 
 	return ""
@@ -147,7 +182,7 @@ func (dmit *DMITable) Query(keyword string) string {
 
 // offset is counted from the beginning for the structure
 // Structure's Formatted is count from the end of Header(4 BYTE long)
-func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset int) string {
+func (dmit *DMITable) dmiToString(s *smbios.Structure, offset int) string {
 	offset -= headerLen
 	idx := uint8(s.Formatted[offset])
 	if int(idx) > len(s.Strings) || idx == 0 {
@@ -157,7 +192,7 @@ func (dmit *DMITable) dmi_to_string(s *smbios.Structure, offset int) string {
 	return s.Strings[int(idx)-1]
 }
 
-func (dmit *DMITable) dmi_system_uuid(s *smbios.Structure, offset int) string {
+func (dmit *DMITable) dmiSystemUUID(s *smbios.Structure, offset int) string {
 	only0xFF, only0x00 := true, true
 	p := s.Formatted[offset:]
 	for i := 0; i < 16 && (only0x00 || only0xFF); i++ {
@@ -174,7 +209,7 @@ func (dmit *DMITable) dmi_system_uuid(s *smbios.Structure, offset int) string {
 	if only0x00 {
 		return fmt.Sprintln("Not Settable")
 	}
-	major, minor, _ := dmit.ep.Version()
+	major, minor, _ := dmit.EntryPoint.Version()
 	//fmt.Println(major, minor, rev)
 	if major >= 3 || (major >= 2 && minor >= 6) {
 		return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
@@ -183,7 +218,7 @@ func (dmit *DMITable) dmi_system_uuid(s *smbios.Structure, offset int) string {
 	return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15])
 }
 
-func (dmit *DMITable) dmi_chassis_type(code uint8) string {
+func (dmit *DMITable) dmiChassisType(code uint8) string {
 	/* 7.4.1 */
 	ctype := []string{
 		"Other", /* 0x01 */
@@ -229,10 +264,10 @@ func (dmit *DMITable) dmi_chassis_type(code uint8) string {
 	if code >= 0x01 && code <= 0x24 {
 		return ctype[code-0x01]
 	}
-	return out_of_spec
+	return outOfSpec
 }
 
-func (dmit *DMITable) dmi_processor_family(s *smbios.Structure) string {
+func (dmit *DMITable) dmiProcessorFamily(s *smbios.Structure) string {
 	data := s.Formatted
 	var i, low, high int
 	var code uint16
@@ -472,10 +507,10 @@ func (dmit *DMITable) dmi_processor_family(s *smbios.Structure) string {
 		{0x202, "RV128"},
 	}
 
-	major, minor, _ := dmit.ep.Version()
+	major, minor, _ := dmit.EntryPoint.Version()
 	/* Special case for ambiguous value 0x30 (SMBIOS 2.0 only) */
 	if major == 2 && minor == 0 && data[0x06-headerLen] == 0x30 && s.Header.Length >= 0x08 {
-		manufacturer := dmit.dmi_to_string(s, 0x07)
+		manufacturer := dmit.dmiToString(s, 0x07)
 
 		if strings.Contains(manufacturer, "Intel") || strings.EqualFold(manufacturer[:5], "Intel") {
 		}
@@ -490,7 +525,7 @@ func (dmit *DMITable) dmi_processor_family(s *smbios.Structure) string {
 	/* Special case for ambiguous value 0xBE */
 	if code == 0xBE {
 		if s.Header.Length >= 0x08 {
-			manufacturer := dmit.dmi_to_string(s, 0x07)
+			manufacturer := dmit.dmiToString(s, 0x07)
 
 			/* Best bet based on manufacturer string */
 			if strings.Contains(manufacturer, "Intel") || strings.EqualFold(manufacturer[:5], "Intel") {
@@ -515,7 +550,7 @@ func (dmit *DMITable) dmi_processor_family(s *smbios.Structure) string {
 		}
 
 		if low == high { /* Not found */
-			return out_of_spec
+			return outOfSpec
 		}
 		if code < family2[i].value {
 			high = i
@@ -525,7 +560,7 @@ func (dmit *DMITable) dmi_processor_family(s *smbios.Structure) string {
 	}
 }
 
-func (dmit *DMITable) dmi_processor_frequency(p []byte) string {
+func (dmit *DMITable) dmiProcessorFrequency(p []byte) string {
 	code := binary.LittleEndian.Uint16(p[:2])
 	if code != 0 {
 		return fmt.Sprintf("%d MHz", code)
