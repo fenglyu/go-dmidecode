@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	smbios "github.com/fenglyu/go-dmidecode"
+	smbios "github.com/xaionaro-facebook/go-dmidecode"
 )
 
 func main() {
