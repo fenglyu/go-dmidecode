@@ -1,4 +1,4 @@
-module github.com/xaionaro-facebook/go-dmidecode
+module github.com/fenglyu/go-dmidecode
 
 go 1.13
 
